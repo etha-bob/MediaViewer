@@ -1,0 +1,220 @@
+name: Build and Release Portable App
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  APP_NAME: MediaBrowser
+  BUILD_TYPE: Release
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-windows:
+    name: Build Windows Portable
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore source/MediaBrowser/MediaBrowser.csproj
+
+    - name: Build
+      run: |
+        dotnet build source/MediaBrowser/MediaBrowser.csproj `
+          --configuration ${{ env.BUILD_TYPE }} `
+          --no-restore `
+          -p:Platform=x64
+
+    - name: Run tests
+      run: |
+        if (Test-Path "tests") {
+          dotnet test tests/ --configuration ${{ env.BUILD_TYPE }} --no-build --verbosity normal
+        } else {
+          Write-Host "No test projects found, skipping test step."
+        }
+      shell: pwsh
+      continue-on-error: false
+
+    - name: Generate version info
+      id: version
+      shell: pwsh
+      run: |
+        $commitHash = git rev-parse --short HEAD
+        $commitDate = git log -1 --format=%cd --date=format:%Y%m%d
+        $version = "v1.0.0-${commitDate}-${commitHash}"
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "Version: $version"
+
+    - name: Publish portable application
+      shell: pwsh
+      run: |
+        dotnet publish source/MediaBrowser/MediaBrowser.csproj `
+          --configuration ${{ env.BUILD_TYPE }} `
+          --runtime win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:EnableCompressionInSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:Platform=x64 `
+          --output publish/
+
+    - name: Package portable application
+      shell: pwsh
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $packageDir = "MediaBrowser-Portable-${version}"
+
+        # Create package directory structure
+        New-Item -ItemType Directory -Force -Path $packageDir
+        New-Item -ItemType Directory -Force -Path "$packageDir/config"
+        New-Item -ItemType Directory -Force -Path "$packageDir/cache"
+
+        # Copy executable
+        Copy-Item "publish/${{ env.APP_NAME }}.exe" "$packageDir/"
+
+        # Copy documentation
+        if (Test-Path "README.md") { Copy-Item "README.md" $packageDir/ }
+        if (Test-Path "LICENSE") { Copy-Item "LICENSE" $packageDir/ }
+
+        # Create default config
+        @"
+        {
+          "version": "${version}",
+          "defaultZoomLevel": 200,
+          "cacheSize": 500,
+          "autoPlayVideos": false,
+          "theme": "system",
+          "lastDirectory": "",
+          "lastSortField": "Name",
+          "lastSortAscending": true,
+          "lastFilterType": "All",
+          "windowWidth": 1200,
+          "windowHeight": 800
+        }
+        "@ | Out-File -FilePath "$packageDir/config/config.json" -Encoding UTF8
+
+        # Create portable README
+        @"
+        # MediaBrowser Portable
+
+        Version: ${version}
+        Built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+        Commit: ${{ github.sha }}
+
+        ## Usage
+        1. Run MediaBrowser.exe
+        2. Click 'Browse' to select a media directory
+        3. Use the toolbar to filter and sort media
+        4. Adjust thumbnail size with the zoom slider (bottom) or Ctrl+Plus / Ctrl+Minus
+
+        ## Supported Formats
+        - Images: JPEG, PNG, BMP, GIF, TIFF, WebP, PSP, TGA, PCX, XYZ
+        - Videos: MP4, AVI, MOV, MKV, WebM
+        - Animated: GIF, APNG
+
+        ## Portable Mode
+        - All settings stored in config/config.json
+        - Cache files stored in cache/ directory
+        - No installation or registry modifications required
+        - Can run from USB drive
+
+        ## Keyboard Shortcuts
+        - Ctrl+Plus  : Increase thumbnail size
+        - Ctrl+Minus : Decrease thumbnail size
+
+        ## System Requirements
+        - Windows 10/11 (64-bit)
+        - 4 GB RAM minimum recommended
+
+        ## Support
+        Report issues: https://github.com/${{ github.repository }}/issues
+        "@ | Out-File -FilePath "$packageDir/README-PORTABLE.txt" -Encoding UTF8
+
+        # Create ZIP archive
+        Compress-Archive -Path $packageDir -DestinationPath "${packageDir}.zip" -CompressionLevel Optimal
+
+        # Generate checksums
+        $hash = (Get-FileHash "${packageDir}.zip" -Algorithm SHA256).Hash
+        "${hash}  ${packageDir}.zip" | Out-File -FilePath "${packageDir}.zip.sha256" -Encoding ASCII
+
+        echo "PACKAGE_NAME=${packageDir}.zip" >> $env:GITHUB_OUTPUT
+        echo "PACKAGE_DIR=${packageDir}" >> $env:GITHUB_OUTPUT
+      id: package
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: MediaBrowser-Portable-Windows-x64
+        path: |
+          ${{ steps.package.outputs.PACKAGE_NAME }}
+          ${{ steps.package.outputs.PACKAGE_NAME }}.sha256
+        retention-days: 30
+
+    - name: Create GitHub Release (on main branch only)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: MediaBrowser ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## MediaBrowser Portable Release
+
+          **Version**: ${{ steps.version.outputs.VERSION }}
+          **Commit**: ${{ github.sha }}
+          **Build Date**: ${{ github.event.head_commit.timestamp }}
+
+          ### Changes in this build
+          ${{ github.event.head_commit.message }}
+
+          ### Installation
+          1. Download `MediaBrowser-Portable-*.zip`
+          2. Extract to any location (USB drive, local folder, etc.)
+          3. Run `MediaBrowser.exe`
+          4. No installation required — fully portable
+
+          ### Checksums
+          See `.sha256` file for SHA-256 verification
+
+          ---
+          **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.sha }}
+        files: |
+          ${{ steps.package.outputs.PACKAGE_NAME }}
+          ${{ steps.package.outputs.PACKAGE_NAME }}.sha256
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: Notify Build Status
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+
+    steps:
+    - name: Build Status Check
+      run: |
+        if [ "${{ needs.build-windows.result }}" == "success" ]; then
+          echo "✅ Build succeeded and portable app was deployed"
+        else
+          echo "❌ Build failed"
+          exit 1
+        fi
