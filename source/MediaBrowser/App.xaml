@@ -12,6 +12,9 @@
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
             <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
             <conv:FileSizeConverter x:Key="FileSizeConverter"/>
+            <conv:CardHeightConverter x:Key="CardHeightConverter"/>
+            <conv:BoolToStretchConverter x:Key="BoolToStretch"/>
+            <conv:NotNullToVisibilityConverter x:Key="NotNullToVisibility"/>
 
             <!-- Colors -->
             <SolidColorBrush x:Key="BackgroundBrush" Color="#1E1E2E"/>
@@ -23,6 +26,7 @@
             <SolidColorBrush x:Key="BorderBrush" Color="#3A3A5C"/>
             <SolidColorBrush x:Key="HoverBrush" Color="#363650"/>
             <SolidColorBrush x:Key="CardBrush" Color="#252538"/>
+            <SolidColorBrush x:Key="SelectedBrush" Color="#4C1D95"/>
 
             <!-- Base text style -->
             <Style TargetType="TextBlock">
@@ -68,6 +72,37 @@
                         <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
                     </Trigger>
                 </Style.Triggers>
+            </Style>
+
+            <!-- Toggle button style -->
+            <Style x:Key="ToggleButtonStyle" TargetType="ToggleButton">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <!-- TextBox style -->
@@ -127,12 +162,40 @@
                 <Setter Property="Width" Value="8"/>
             </Style>
 
-            <!-- Label style -->
+            <!-- Label style: use bright TextBrush for contrast on dark surface -->
             <Style TargetType="Label">
-                <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="12"/>
                 <Setter Property="Padding" Value="0"/>
+            </Style>
+
+            <!-- CheckBox style -->
+            <Style TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
+
+            <!-- GridSplitter style -->
+            <Style TargetType="GridSplitter">
+                <Setter Property="Background" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="Cursor" Value="SizeWE"/>
+            </Style>
+
+            <!-- ContextMenu style -->
+            <Style TargetType="ContextMenu">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="13"/>
+            </Style>
+
+            <!-- MenuItem style -->
+            <Style TargetType="MenuItem">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

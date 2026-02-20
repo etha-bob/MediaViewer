@@ -39,6 +39,15 @@ namespace MediaBrowser.Services
 
         [JsonPropertyName("windowHeight")]
         public double WindowHeight { get; set; } = 800;
+
+        [JsonPropertyName("preserveAspectRatio")]
+        public bool PreserveAspectRatio { get; set; } = false;
+
+        [JsonPropertyName("leftPanelOpen")]
+        public bool LeftPanelOpen { get; set; } = true;
+
+        [JsonPropertyName("rightPanelOpen")]
+        public bool RightPanelOpen { get; set; } = false;
     }
 
     public class ConfigService

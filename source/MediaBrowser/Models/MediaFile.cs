@@ -1,4 +1,6 @@
 using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace MediaBrowser.Models
 {
@@ -10,15 +12,41 @@ namespace MediaBrowser.Models
         Unknown
     }
 
-    public class MediaFile
+    public class MediaFile : INotifyPropertyChanged
     {
         public string Path { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+        public string Directory { get; set; } = string.Empty;
+        /// <summary>Immediate child subdirectory name under the scan root, or empty string for root-level files.</summary>
+        public string SubDirectory { get; set; } = string.Empty;
         public long Size { get; set; }
         public DateTime DateCreated { get; set; }
         public DateTime DateModified { get; set; }
         public MediaType Type { get; set; }
         public string Extension { get; set; } = string.Empty;
+
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { _isSelected = value; OnPropertyChanged(); }
+        }
+
+        private int _pixelWidth;
+        public int PixelWidth
+        {
+            get => _pixelWidth;
+            set { _pixelWidth = value; OnPropertyChanged(); OnPropertyChanged(nameof(DimensionDisplay)); }
+        }
+
+        private int _pixelHeight;
+        public int PixelHeight
+        {
+            get => _pixelHeight;
+            set { _pixelHeight = value; OnPropertyChanged(); OnPropertyChanged(nameof(DimensionDisplay)); }
+        }
+
+        public string DimensionDisplay => PixelWidth > 0 ? $"{PixelWidth} × {PixelHeight} px" : "—";
 
         public string SizeDisplay
         {
@@ -38,5 +66,9 @@ namespace MediaBrowser.Models
             MediaType.Animated => "Animated",
             _ => "Unknown"
         };
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

@@ -82,10 +82,13 @@ namespace MediaBrowser.Services
                     try
                     {
                         var info = new FileInfo(filePath);
+                        var subDir = GetImmediateSubDirectory(rootPath, filePath);
                         results.Add(new MediaFile
                         {
                             Path = filePath,
                             Name = info.Name,
+                            Directory = info.DirectoryName ?? string.Empty,
+                            SubDirectory = subDir,
                             Size = info.Length,
                             DateCreated = info.CreationTime,
                             DateModified = info.LastWriteTime,
@@ -118,6 +121,13 @@ namespace MediaBrowser.Services
 
             progress?.Report(count);
             return results;
+        }
+
+        private static string GetImmediateSubDirectory(string rootPath, string filePath)
+        {
+            var relative = Path.GetRelativePath(rootPath, filePath);
+            var sep = relative.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+            return sep < 0 ? string.Empty : relative[..sep];
         }
     }
 }

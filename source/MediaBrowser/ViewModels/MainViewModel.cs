@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -20,6 +21,7 @@ namespace MediaBrowser.ViewModels
 
         // ── Bindable Collections ──────────────────────────────────────────────
         public ObservableCollection<MediaFile> DisplayedFiles { get; } = new();
+        public ObservableCollection<SubDirectoryNode> SubDirectories { get; } = new();
 
         // ── Scanning state ────────────────────────────────────────────────────
         private bool _isScanning;
@@ -57,6 +59,48 @@ namespace MediaBrowser.ViewModels
                 OnPropertyChanged();
                 _config.DefaultZoomLevel = value;
             }
+        }
+
+        // ── Aspect Ratio ──────────────────────────────────────────────────────
+        private bool _preserveAspectRatio;
+        public bool PreserveAspectRatio
+        {
+            get => _preserveAspectRatio;
+            set
+            {
+                _preserveAspectRatio = value;
+                OnPropertyChanged();
+                _config.PreserveAspectRatio = value;
+            }
+        }
+
+        // ── Selection ─────────────────────────────────────────────────────────
+        private MediaFile? _selectedFile;
+        public MediaFile? SelectedFile
+        {
+            get => _selectedFile;
+            set
+            {
+                if (_selectedFile != null) _selectedFile.IsSelected = false;
+                _selectedFile = value;
+                if (_selectedFile != null) _selectedFile.IsSelected = true;
+                OnPropertyChanged();
+            }
+        }
+
+        // ── Panel visibility ──────────────────────────────────────────────────
+        private bool _leftPanelOpen;
+        public bool LeftPanelOpen
+        {
+            get => _leftPanelOpen;
+            set { _leftPanelOpen = value; OnPropertyChanged(); _config.LeftPanelOpen = value; }
+        }
+
+        private bool _rightPanelOpen;
+        public bool RightPanelOpen
+        {
+            get => _rightPanelOpen;
+            set { _rightPanelOpen = value; OnPropertyChanged(); _config.RightPanelOpen = value; }
         }
 
         // ── Filter / Sort properties ──────────────────────────────────────────
@@ -142,6 +186,9 @@ namespace MediaBrowser.ViewModels
             _sortField = _config.LastSortField;
             _sortAscending = _config.LastSortAscending;
             _filterType = _config.LastFilterType;
+            _preserveAspectRatio = _config.PreserveAspectRatio;
+            _leftPanelOpen = _config.LeftPanelOpen;
+            _rightPanelOpen = _config.RightPanelOpen;
         }
 
         // ── Scanning ──────────────────────────────────────────────────────────
@@ -155,6 +202,8 @@ namespace MediaBrowser.ViewModels
             ScannedCount = 0;
             _allFiles.Clear();
             DisplayedFiles.Clear();
+            SubDirectories.Clear();
+            SelectedFile = null;
             CurrentDirectory = path;
             StatusText = $"Scanning {path}…";
             _config.LastDirectory = path;
@@ -169,6 +218,26 @@ namespace MediaBrowser.ViewModels
             {
                 var files = await _scanner.ScanDirectoryAsync(path, progress, cts.Token);
                 _allFiles = files;
+
+                // Build subdirectory list from scanned files
+                var subDirs = files
+                    .Select(f => f.SubDirectory)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(d => d)
+                    .ToList();
+
+                foreach (var dir in subDirs)
+                {
+                    var node = new SubDirectoryNode
+                    {
+                        Name = string.IsNullOrEmpty(dir) ? "(root)" : dir,
+                        FullPath = string.IsNullOrEmpty(dir) ? path : Path.Combine(path, dir),
+                        IsChecked = true
+                    };
+                    node.PropertyChanged += (_, _) => ApplyFilterAndSort();
+                    SubDirectories.Add(node);
+                }
+
                 ApplyFilterAndSort();
                 StatusText = $"Found {_allFiles.Count} media files in {path}";
             }
@@ -192,6 +261,21 @@ namespace MediaBrowser.ViewModels
         public void ApplyFilterAndSort()
         {
             var query = _allFiles.AsEnumerable();
+
+            // Subdirectory filter
+            if (SubDirectories.Count > 0 && SubDirectories.Any(d => !d.IsChecked))
+            {
+                var checkedNames = SubDirectories
+                    .Where(d => d.IsChecked)
+                    .Select(d => d.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                query = query.Where(f =>
+                {
+                    var key = string.IsNullOrEmpty(f.SubDirectory) ? "(root)" : f.SubDirectory;
+                    return checkedNames.Contains(key);
+                });
+            }
 
             // Type filter
             query = _filterType switch
@@ -255,3 +339,4 @@ namespace MediaBrowser.ViewModels
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
+
