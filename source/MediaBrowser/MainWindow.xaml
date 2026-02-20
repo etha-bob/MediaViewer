@@ -386,9 +386,8 @@
                            VerticalAlignment="Center"
                            FontSize="12"
                            Foreground="{StaticResource SubtextBrush}"
-                           MinWidth="50">
-                    <Binding Path="ThumbnailSize" StringFormat="{}{0}px"/>
-                </TextBlock>
+                           MinWidth="50"
+                           Text="{Binding ThumbnailSize, StringFormat='{}{0}px'}"/>
             </Grid>
         </Border>
 
