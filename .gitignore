@@ -1,0 +1,29 @@
+# Build outputs
+bin/
+obj/
+publish/
+*.zip
+*.sha256
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# dotnet
+*.nupkg
+.nuget/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+log.txt

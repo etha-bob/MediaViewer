@@ -1,0 +1,62 @@
+name: PR Validation Build
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  validate:
+    name: Validate PR Build
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore source/MediaBrowser/MediaBrowser.csproj
+
+    - name: Build
+      run: |
+        dotnet build source/MediaBrowser/MediaBrowser.csproj `
+          --configuration Release `
+          --no-restore `
+          -p:Platform=x64
+
+    - name: Run tests
+      shell: pwsh
+      run: |
+        if (Test-Path "tests") {
+          dotnet test tests/ --configuration Release --no-build --verbosity normal
+        } else {
+          Write-Host "No test projects found, skipping test step."
+        }
+
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const status = '${{ job.status }}' === 'success' ? '✅' : '❌';
+          const msg = '${{ job.status }}' === 'success'
+            ? '✅ PR build validation passed — MediaBrowser compiles successfully.'
+            : '❌ PR build validation failed. Please check the workflow logs for details.';
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: msg
+          })

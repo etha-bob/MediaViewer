@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>MediaBrowser</AssemblyName>
+    <RootNamespace>MediaBrowser</RootNamespace>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Company>MediaBrowser</Company>
+    <Product>MediaBrowser</Product>
+    <Description>Portable Windows media browser for images, videos, and animated files</Description>
+    <Copyright>Copyright © 2026</Copyright>
+    <Platforms>x64</Platforms>
+    <LangVersion>latest</LangVersion>
+    <!-- Portable: self-contained single-file publish -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Keep PDB separate so exe stays smaller -->
+    <DebugType>pdbonly</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <!-- No external NuGet packages required — WPF and System.Text.Json are built-in -->
+</Project>
